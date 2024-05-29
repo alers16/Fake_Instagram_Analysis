@@ -1,0 +1,28 @@
+project:
+  type: book
+
+book:
+  title: "Fake_Instagram"
+  author: "Alejandro Román Sánchez"
+  date: 05/26/2024
+  date-format: "MMM D, YYYY"
+  chapters:
+    - index.qmd
+    - Análisis_Exploratorio.qmd
+    - Visualizacion.qmd
+    - Reglas.qmd
+    - FCA.qmd
+    - Regresion.qmd
+    - Series.qmd
+    - Otras_técnicas.qmd
+
+bibliography: references.bib
+
+format:
+  html:
+    theme: cosmo
+  pdf:
+    documentclass: scrreprt
+
+editor: visual
+

@@ -1,0 +1,167 @@
+# Reglas de Asociación
+
+Las reglas de asociación son técnicas utilizadas en el análisis de datos para descubrir relaciones interesantes y útiles entre variables en grandes conjuntos de datos. Estas reglas identifican patrones frecuentes en los datos, como asociaciones o correlaciones entre elementos.
+
+## Importación de las librerías y Dataset
+
+Primero, antes de comenzar con el análisis de reglas de asociación, importaremos todas las librerías necesarias para aplicar los diferentes datos, además de importar el Dataset train.csv.
+
+```{r}
+library(tidyverse)    
+library(readr)   
+library(magrittr)  
+library(arules)
+library(arulesViz)
+
+train <- read_csv("train.csv")
+```
+
+Como ya tenemos todo bien importado, comenzamos.
+
+## Preparación
+
+Al usar el método a priori, debemos convertir todas aquelas variables continuas y numéricas en categóricas, es decir, en factores. En nuestro caso al ser todas numéricas, habrá que cambiar todo, pero lo haremos en una copia, no en la original.
+
+```{r}
+#Creamos la copia
+train_factor <- train
+
+
+# Foto de perfil
+train_factor$`profile pic` <- as.factor(train_factor$`profile pic`)
+
+# Nombre = Nombre Usuario
+train_factor$`name==username` <- as.factor(train_factor$`name==username`)
+
+# URL Externa
+train_factor$`external URL` <- as.factor(train_factor$`external URL`)
+
+# Privado
+train_factor$private <- as.factor(train_factor$private)
+
+# Fake
+train_factor$fake <- as.factor(train_factor$fake)
+
+# nums/length username
+train_factor$`nums/length username` <- ordered(cut(train_factor$`nums/length username`, 
+                               breaks = c(-Inf, 0.1, 0.5, Inf), 
+                               labels = c("Bajo", "Medio", "Alto")))
+
+# nums/length fullname
+train_factor$`nums/length fullname` <- ordered(cut(train_factor$`nums/length fullname`, 
+                               breaks = c(-Inf, 0.1, 0.5, Inf), 
+                               labels = c("Bajo", "Medio", "Alto")))
+
+# fullname words 
+train_factor$`fullname words` <- ordered(cut(train_factor$`fullname words`, 
+                         breaks = c(-Inf, 1, 4, Inf), 
+                         labels = c("Corto", "Medio", "Largo")))
+
+# description length
+train_factor$`description length` <- ordered(cut(train_factor$`description length` , 
+                             breaks = c(-Inf, 50, 100, Inf), 
+                             labels = c("Corto", "Medio", "Largo")))
+# #posts
+# Utilizaremos cuantiles debido a que la distribución de los datos, como hemos visto, no es uniforme
+breaks_posts <- unique(quantile(train_factor$`#posts`, probs = seq(0, 1, 0.25)))
+
+train_factor$`#posts` <- ordered(cut(train_factor$`#posts`, 
+                breaks = breaks_posts, 
+                include.lowest = TRUE, 
+                labels = c("Bajo", "Medio", "Alto")))
+
+# #followers 
+breaks_followers <- unique(quantile(train_factor$`#followers`, probs = seq(0, 1, 0.25)))
+                           
+train_factor$`#followers` <- cut(train_factor$`#followers`, 
+                    breaks = breaks_followers, 
+                    include.lowest = TRUE, 
+                    labels = c("Bajo", "Medio-Bajo", "Medio-Alto", "Alto"))
+
+#  #follows 
+breaks_follows <- unique(quantile(train_factor$`#follows`, probs = seq(0, 1, 0.25)))
+
+train_factor$`#follows` <- cut(train_factor$`#follows`, 
+                  breaks = breaks_follows, 
+                  include.lowest = TRUE, 
+                  labels = c("Bajo", "Medio-Bajo", "Medio-Alto", "Alto"))
+
+#Guardamos la copia en un archivo
+write.csv(train_factor, "train_factor.csv")
+```
+
+Una vez preparado nuestras variables, convertimos el tipo de datos a transacciones para poder realizar a priori.
+
+```{r}
+train_transactions <- as(train_factor, "transactions")
+```
+
+## Extracción de reglas por el método a priori
+
+Vamos a realizar el método a priori para obtener las reglas de asociación, con un 15% de soporte mínimo y una confianza mínima del 80%.
+
+```{r}
+train_rules <- apriori(train_transactions, parameter = list(supp = 0.15, conf = 0.8))  
+
+# Ordenamos por confianza 
+train_rules <- sort(train_rules, by = "confidence")
+```
+
+Hemos obtenido un total de 5333 reglas.
+
+Para conocer un poco más que reglas e itemset hemos sacado, vamos a visualizar los itemsets más frecuentes.
+
+```{r}
+barplot(table(size(train_rules)),         
+        xlab = "Tamaño de itemset", ylab = "Frecuencia",         
+        main = "Tamaños de itemsets en los itemsets frecuentes")
+```
+
+Antes de seguir analizando las diferentes reglas, vamos a eliminar las reglas que son redundantes, es decir, reglas que están incluidas en otras.
+
+```{r}
+train_rules_pruned <- train_rules[which(!is.redundant(train_rules))]
+```
+
+A continuación eliminaremos aquella reglas con confianza == 1 ya que el objetivo de este análisis es descubrir relaciones no triviales o patrones inesperados, por lo que las verdades absolutas no nos interesan.
+
+```{r}
+train_rules_selected <- subset(train_rules_pruned, subset = confidence < 1)
+```
+
+Para la obtención de relaciones no triviales y de las asociaciones más útiles, vamos a escoger aquellas reglas cuyo lift sea \> 1 y ordenaremos por lift para obtener las más útiles.
+
+```{r}
+train_rules_selected <- subset(train_rules_selected, subset = lift > 1)  
+train_rules_selected <- sort(train_rules_selected, by = "lift")  
+
+inspect(head(train_rules_selected, 10))
+```
+
+Como podemos observar, de estas 10 reglas más útiles, las que verdaderamente nos importan son:
+
+-   profile pic = 0 -\> fake = 1
+
+-   fullname words = Corto, #followers = Bajo -\> fake = 1
+
+Es decir, lo que nos importa verdaderamente son aquellas reglas cuya parte derecha sea fake = 1, por lo que vamos a filtrarlo para ver que obtenemos.
+
+```{r}
+train_rules_fake  <- subset(train_rules_selected, train_rules_selected@rhs %in% "fake=1")  
+
+inspect(head(train_rules_fake, 10))
+```
+
+Vamos a visualizar gráficamente estas reglas.
+
+```{r}
+plot(train_rules_fake, method = "graph", control = list(type = "items"))
+```
+
+## Conclusión y Recomendaciones
+
+Con todos estos datos, las recomendaciones que podemos dar para reconocer fácilmente las cuentas fakes son:
+
+-   Monitorear aquellas cuentas sin foto de perfil, ya que según hemos comprobado tienen una confianzadel 98% y tienen 1,98 más probabilidad de ser fake que las demás
+
+-   Hacer incapié en aquellas cuentas con nombre completo corto, ya que pertenece a la mayor parte reglas, realizando un análisis más profundo de otras caracteristicas como la descripcion, numero de posts, su privacidad, entre otros.

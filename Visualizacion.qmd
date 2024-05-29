@@ -1,0 +1,69 @@
+# Visualización de Datos
+
+## Importación de las librerías y Dataset
+
+Primero, antes de comenzar con la visualización de los datos, importaremos todas las librerías necesarias para aplicar los diferentes datos, además de importar el Dataset train.csv.
+
+```{r}
+library(tidyverse)   
+library(readr)  
+library(magrittr) 
+library(ggplot2)     
+
+train <- read_csv("train.csv")
+```
+
+Como ya tenemos todo bien importado, comenzamos.
+
+## Visualización
+
+A continuación, vamos a crear una variedad de grafos que nos van a ayudar a explorar y comunicar las relaciones entre las diferentes variables.
+
+Primero visualizaremos la distribución de las variables numéricas como **profile_pics, nums/length username.**
+
+```{r}
+train %>% group_by(`profile pic`) %>% count() %>%   
+  ggplot(aes(x= `profile pic`, y = n)) +  geom_bar(stat="identity", fill="red")
+```
+
+```{r}
+train %>% filter(`nums/length username`!= 0) %>%  group_by(`nums/length username`)   %>% count() %>%  ggplot(aes(x= `nums/length username`, y = n)) + 
+  geom_bar(stat="identity", fill="red")
+```
+
+Ahora realizaremos un bloxplot para comparar la distribución de una variable numérica entre diferentes grupos. Por ejemplo, **followers** por **fake**.
+
+```{r}
+train %>% ggplot(aes(x=factor(fake), y=`#followers`)) +    
+  geom_boxplot(fill="lightblue", color="darkblue") +    
+  labs(title="Seguidores por Tipo de Cuenta", x="Cuenta Fake", y="Número de Seguidores") +    
+  scale_x_discrete(labels=c("0" = "Real", "1" = "Fake")) +    
+  facet_wrap(~ fake, scales = "free")
+```
+
+Aqui nos damos cuenta de que el numero de seguidores de una cuenta real es mucha mayor a la de las cuentas fake.
+
+A continuación, vamos a visualizar un scatter plot o diagrama de dispersión para explorar relaciones entre pares de variables numéricas, como **followers** vs **posts**. Como ambas variables tienen una gran variedad de datos distintos, vamos a agregar una línea de suavizado para capturar la tendencia general de los datos. Además, debido a la alta variabilidad y los valores extremos de las variables, voy a aplicar una transformación logarítmica para ayudar a visualizar mejor su relación.
+
+```{r}
+train %>% ggplot(aes(x=log1p(`#followers`), y = log1p(`#posts` ))) +    
+  geom_point(alpha=0.4) +    
+  geom_smooth(method="loess") +    
+  labs(title="Seguidores vs Posts con Suavizado", x="Número de Seguidores", y="Número de Posts")
+```
+
+Ahora vamos a comprarar distribuciones de variables numéricas entre diferentes grupos utilizando gráficos de densidad.
+
+```{r}
+train %>% ggplot( aes(x=`description length`, fill=factor(fake))) +   
+  geom_density(alpha=0.5) +    
+  labs(title="Densidad de Longitud de Descripción por Tipo de Cuenta", x="Longitud de Descripción", fill="Cuenta Fake") 
+```
+
+De esta gráfica podemos sacar varias conclusiones:
+
+-   Las cuentas falsas tienen tendencia a tener descripciones más cortas
+
+-   Las cuentas no falsas tienen una variedad más amplia en la longitud de sus descripciones
+
+-   La densidad para las cuentas falsas es alta cuando la longitud de la descripción es corta, disminuyendo rápidamente a medida que aumenta la longitud.

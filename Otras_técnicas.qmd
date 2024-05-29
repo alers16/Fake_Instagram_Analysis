@@ -1,0 +1,17 @@
+# Otras técnicas
+
+A lo largo del cuatrimestre, a parte de las técnicas que ya hemos visto, hemos estudiado otras técnicas para el análisis e investigación de datos.
+
+## Análisis de Redes Sociales
+
+Se trata de una disciplina con base sólida de Matemática aplicada, usando Teoría de Grafos y Matemática Discreta.
+
+Su principal objetivo es descubrir las relaciones entre los elementos de una red y extraer conocimiento acerca de las estructuras sociales que existen en esa red.
+
+Sin embargo, los datos que disponemos no nos permiten realizar esta técnica, ya que no tenemos ningún dato que nos indique la relación entre varias cuentas, por lo que nos es imposible aplicar teoría de grafos.
+
+## Algebra Lineal
+
+El álgebra lineal proporciona herramientas para representar y operar con conjuntos de datos, como matrices y vectores, de manera eficiente.
+
+Sin embargo, nosotros no disponemos de matrices ni vectores, además no tiene sentido crearlas ya que cambiaría por completo el objetivo de este artículo, que es estudiar cuando una cuenta de instagram es falsa o no. Esto significa que no tiene sentido aplicar esta técnica a nuestro dataset.

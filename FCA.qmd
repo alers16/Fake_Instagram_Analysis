@@ -1,0 +1,101 @@
+# FCA - Formal Concept Analysis
+
+El Análisis de Conceptos Formales nos puede ayudar a descubrir patrones que podrían ser útiles para comprender mejor las características de estas cuentas y para desarrollar estrategias de detección más efectivas.
+
+## Importación de las librerías y Dataset
+
+Primero, antes de comenzar con el análisis de conceptos formales, importaremos todas las librerías necesarias para aplicar los diferentes datos, además de importar el Dataset train.csv.
+
+```{r}
+library(tidyverse) 
+library(readr)  
+library(magrittr)  
+library(fcaR)
+train_factor  <- read_csv("train_factor.csv")
+```
+
+Como ya tenemos todo bien importado, comenzamos.
+
+## Preparación
+
+Al haber factorizado los datos, vamos a trabajar sobre los mismos, ya que al hacer el proceso de scaling nos van a salir mejores resultados con categorías discretas que con datos númericos diferentes.
+
+### Contexto Formal
+
+Primero, como ya tenemos los datos categorizados, crearemos el contexto formal.
+
+```{r}
+train_factor$...1 <- NULL
+contexto_train <- FormalContext$new(train_factor)
+contexto_train
+```
+
+### Scaling
+
+Realizamos esto porque nos ayuda a transformar los datos en un formato adecuado para el análisis conceptual, es decir, en un formato binario.
+
+```{r}
+contexto_train$scale("profile pic", "Nominal")
+contexto_train$scale("external URL", "Nominal") 
+contexto_train$scale("private", "Nominal") 
+contexto_train$scale("fake", "Nominal") 
+contexto_train$scale("name==username", "Nominal") 
+contexto_train$scale("nums/length username", "Ordinal") 
+contexto_train$scale("nums/length fullname", "Ordinal") 
+contexto_train$scale("fullname words", "Ordinal") 
+contexto_train$scale("description length", "Ordinal")
+contexto_train$scale("#posts", "Ordinal") 
+contexto_train$scale("#follows", "Ordinal") 
+contexto_train$scale("#followers", "Ordinal")
+```
+
+## Aplicación de FCA
+
+Ahora que tenemos los datos en formato binario, podemos proceder con el análisis FCA.
+
+Primero, vamos a calcular y visualizar los diferentes conceptos que podemos obtener de estos datos. Mátematicamente, un concepto es un un par (X,Y) con X ⊆ O e Y ⊆ A, donde O es el conjunto de objetos y A el conjunto de atributos.
+
+```{r}
+contexto_train$find_concepts()
+conceptos <- contexto_train$concepts
+head(conceptos, 3)
+```
+
+Como podemos ver, al existir tantos datos, los conceptos no son fácilmente identificables . Además, al ser los objetos las distinas cuentas, tenemos una gran cantidad de filas que al intentar investigar patrones con extent o intent, es casi imposible sacar alguna conclusión firme de ellos.
+
+Por lo que la mejor opción para encontrar reglas o patrones es a través de las implicaciones.
+
+```{r}
+contexto_train$find_implications()
+l <- contexto_train$implications$size()
+colMeans(l)
+```
+
+Sin aplicar reglas, obtenemos implicaciones con 14 objetos de media en la parte izquierda y 1,76 en la parte derecha. Vamos a ver ahora que pasa cuando le aplicamos reglas de generalización y simplicación
+
+```{r}
+contexto_train$implications$apply_rules(rules = c("composition",
+                                      "generalization",
+                                      "simplification",
+                                      "rsimplification"))
+l <- contexto_train$implications$size()
+colMeans(l)
+```
+
+Como vemos, la parte izquierda ha disminuido considerablemente, por lo que nos será más fácil trabajar con ellas.
+
+Como el objetivo de este análisis son las cuentas fake, por lo que vamos a filtrar a ver que nos encontramos.
+
+```{r}
+contexto_train$implications$filter(rhs = "fake = 1")
+```
+
+## Conclusiones
+
+Al hacer todas estas operaciones, hemos conseguido obtener resultados bastante interesantes. También hay que decir que estas reglas no tienen un 100% de confianza, ya que éstas se adaptan a los datos que tenemos, que aunque hay bastantes, no son suficiente para darnos verdades "absolutas". Sin embargo nos dan una buena visión sobre que características hay que tener más en cuenta para la detección de las cuentas falsas.
+
+La información más relevante que hemos sacado de estas implicaciones son:
+
+-   Parece ser que con los datos que tenemos, si una cuenta tiene el mismo nombre tanto de usuario como completo, además de tener un número bajo de posts, siempre es fake.
+
+-   Otra regla importante a tener en cuenta es la tercera, la cual nos dice que si la cuenta no tiene foto de perfil y el número de seguidores es bajo o muy bajo, la cuenta sera fake y la descripcion será corta.

@@ -1,0 +1,124 @@
+# Análisis exploratorio de los datos
+
+El análisis exploratorio de datos es un enfoque utilizado para analizar y resumir las características principales de un conjunto de datos, a menudo con métodos visuales, aunque esto lo veremos en el apartado de Visualización. El objetivo del EDA es comprender la estructura de los datos, identificar patrones, detectar anomalías, comprobar hipótesis y sugerir modelos estadísticos.
+
+## Importación de las librerías y Dataset
+
+Primero, antes de comenzar con el análisis exploratorio, importaremos todas las librerías necesarias para aplicar los diferentes datos, además de importar el Dataset train.csv.
+
+```{r}
+library(tidyverse)  
+library(readr) 
+library(magrittr)
+library(funModeling)   
+
+train <- read_csv("train.csv")
+```
+
+Como ya tenemos todo bien importado, comenzamos.
+
+## Análisis
+
+Primero, vamos a ver un resumen de la estructura de nuestra tabla y visualizar las primeras y últimas filas de nuestro dataset.
+
+```{r}
+glimpse(train)
+```
+
+```{r}
+head(train)
+```
+
+```{r}
+tail(train)
+```
+
+El data set tiene las siguientes columnas:
+
+-   **Profile pic:** nos indica si el la cuenta tiene imagen de perfil.
+
+-   **Nums/length username:** porcentaje de numeros que tiene el nombre de usuario
+
+-   **Fullname words:** el numero de palaras que tiene el nombre completo de la cuenta
+
+-   **Nums/length full name:** porcentaje de numeros que tiene el nombre comple
+
+-   **Name==username:** nos indica si el nombre completo es igual al usuario
+
+-   **Description length:** nos muestra el numero de caracteres que tiene la descripcion de la cuenta
+
+-   **ExternalURL:** nos muestra si tiene una URL externa o no.
+
+-   **Private:** nos dice si la privacidad de la cuenta es pública(0) o privada(1)
+
+-   **Posts:** nos indica el número de posts que tiene la cuenta
+
+-   **Followers:** nos dice el número de seguidores que tiene la cuenta
+
+-   **Follows:** nos indica el número de cuentas que sigue el usuario
+
+-   **Fake:** es la columna más importante, nos dice si la cuenta es falsa o no.
+
+Una vez puestos en contexto, podemos comenzar con el análisis exploratorio.
+
+Lo primero que debemos hacer es ver el numero de variable que almacena el dataset así como el numero de datos del que disponemos, además del estado de los mismo, es decir, ver si hay muchos na, sin hay muchos únicos, etc; para así poder descartar fácilmente aquellas columnas que no aportan ninguna información.
+
+```{r}
+ncol(train)
+```
+
+```{r}
+nrow(train)
+```
+
+```{r}
+status(train)
+```
+
+Ninguna columna tiene datos NA, por lo que podemos decir que este dataset es completo.
+
+Además, podemos observar que la columna name==username tiene un 96% de porcentaje de 0s, lo cual nos puede dar algún indicio de que sea inservible. Sin embargo, lo dejaremos para ver que reglas nos salen con este atributo y decidiremos.
+
+Para saber en que datos nos estamos moviendo, me gustaría saber cual es la frecuencia de cuentas fake que tenemos. Para ellos vamos a utilizar el comando table.
+
+```{r}
+table(train$fake)
+```
+
+Como puedes ver, la mitad de las cuentas en nuestro dataset son falsas. Así que ahora toca escarbar más profundo para entender qué las hace diferentes de las cuentas reales.
+
+Siguiendo el sentido común, normalmente las cuentas fake no suelen tener fotos de perfil, por lo que nuestro siguiente estudio se centrará en ver que ratio de cuentas fake no tienen foto de perfil, a ver si a priori tenemos razón.
+
+```{r}
+numfotoPerfilFake <- train %>% filter(`profile pic` == 0 & fake == 1) %>% nrow()
+
+numDatosFake <- train %>% filter(fake == 1) %>%  nrow()
+numfotoPerfilFake/numDatosFake
+```
+
+Teniamos cierta razón, de todas las cuentas fakes, casi un 60% de ellas no tienen foto de perfil, por lo que pienso que este dato es importante para la detección de dichas cuentas.
+
+Otro dato muy a tener en cuenta son los seguidores de una cuenta, ya que la mayoría de cuentas falsas no tienen muchos seguidores. Vamos a ver si es cierto esto.
+
+```{r}
+medfollowersFake <- train %>% filter(fake == 1) %>% select(`#followers`)
+medfollowersFake <- mean(medfollowersFake$`#followers`)
+
+medfollowersReal <- train %>% filter(fake == 0) %>% select(`#followers`)
+medfollowersReal <- mean(medfollowersReal$`#followers`)
+
+medfollowersFake
+medfollowersReal
+```
+
+La diferencia de medias es bastante grande, mientras que la media de seguidores de las cuentas falsas son de 110.6 aproximadamente, la media de seguidores de las cuentas reales es de 170504. Esto nos afirma que una cuenta con un numero bajo de seguidores, tiene bastante probabilidad de ser una cuenta falsa, aunque no nos lo asegura al 100% ya que hay muchas cuentas reales con menos seguidores que la primera media.
+
+A continuación, vamos a comprobar que correlación tienen las cuentas fake con la longitud de las descripciones.
+
+```{r}
+cor(train$fake, train$`description length`)
+```
+
+Como podemos ver, un valor más alto en la variable fake tiende a estar asociado con una longitud más corta en la descripción del perfil en Instagram. Por lo tanto, podríamos inferir que las cuentas que tienen descripciones más cortas tienden a ser más propensas a ser falsas.
+
+Hemos visto las relaciones entre algunas columnas de datos para saber un poco más que tipo de datos estamos manejando. Tras esto, vamos a visualizar todo lo que hemos visto en forma de gráficos, para poder ver las relaciones de los datos de una manera más simple y rápida.

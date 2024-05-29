@@ -1,0 +1,9 @@
+# Detección de cuentas "Fake" de Instagram
+
+Detectar cuentas no reales o "fake" en Instagram no es un trabajo fácil. Sin embargo, es posible construir un modelo que te diga la probabilidad de que una cuenta de Instagram sea real o no.
+
+Para este propósito, nos basaremos en un conjunto de datos que recopila una variedad de características que podrían servir como indicadores de la falsedad de una cuenta.
+
+Mediante el análisis exploratorio de estos datos, nuestro objetivo es identificar patrones y tendencias que permitan diferenciar de manera efectiva entre cuentas auténticas y falsas en la plataforma.
+
+También aplicaremos otras técnicas para un análisis más avanzado de nuestros datos, como son la reglas de asociación y análisis de conceptos formales, entre otros.

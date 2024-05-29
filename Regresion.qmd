@@ -1,0 +1,164 @@
+# Modelos de Regresión
+
+El objetivo principal de realizar un modelo de regresión es predecir el valor de la variable dependiente (en este caso si la cuenta es fake o no) basado en los valores de las variables independientes y comprender la fuerza y la forma de las relaciones entre ellas.
+
+## Importación de las librerías y Dataset
+
+Primero, antes de comenzar con la realización de los modelos de regresión, importaremos todas las librerías necesarias para aplicar los diferentes datos, además de importar el Dataset train.csv.
+
+```{r}
+library(tidyverse)
+library(readr)  
+library(magrittr) 
+
+```
+
+Como ya tenemos todo bien importado, comenzamos.
+
+## Modelado de Regresión
+
+### División de datos
+
+Para trabajar correctamente con los datos, vamos a dividirlos en dos grupos, train y test.
+
+```{r}
+train <- read_csv("train.csv")
+test <- read_csv("test.csv")
+```
+
+Con el dataset train es con el que realizaremos nuestro modelo, mientras que con el dataset test es con el que realizaremos las pruebas y predicciones.
+
+### Ajuste del modelo de regresión y evaluación
+
+Una vez dividido los datos, procederemos a ajustar un modelo de regresión con los datos de train. Al investigar las cuentas fake de Instagram, la variable dependiente de nuestro modelo será el atributo fake. Primero relacionaremos esa variable con todas las demás, para ver cuáles son significativas.
+
+```{r}
+attach(train)
+modelo1 <- lm(fake ~ ., data = train)
+summary(modelo1)
+```
+
+De este modelo podemos sacar lo siguiente:
+
+-   Al ser el p-value bastante bajo, podemos decir que tenemos modelo.
+
+-   El error estándar residual es relativamente bajo, por lo que nos puede dar un indicio de que las predicciones pueden ser buenas.
+
+-   En este caso al ser un contexto social y tener una variablilidad alta, es un buen valor por lo que el error se ajusta parcialmente a los datos.
+
+-   Al ser el R2 ajustado cercano al estadístico anterior, sugiere que el modelo no está sobreajustado y que la mayoría de las variables incluidas son relevamtes.
+
+Sin embargo, tenemos bastantes variables no significativas, lo que significa que si se eliminan, el modelo apenas no cambia. Para comprobarlo, vamos a hacer un segundo modelo, sin las variables no significativas, solo quedándonos con las muy significativas y las significativas.
+
+```{r}
+modelo2 <- lm(fake ~ `profile pic` + `nums/length username` + `description length` + `name==username` + `external URL`)
+summary(modelo2)
+```
+
+Como podemos observar, efectivamente este modelo es prácticamente igual que el anterior, aún elimando variables independientes.
+
+### Validación del modelo
+
+Ahora lo que haremos será evaluar el segundo modelo obtenido.
+
+#### Visualización
+
+Para la validación del modelo, primero vamos a dibujarlo y analizarlo.
+
+```{r}
+plot(modelo2)
+```
+
+Tras ver la primera gráfica, podemos saber que los residuos no se esparcen aleatoriamente, si no que siguen un patrón que es fácilmente visible. Esto nos indica que el modelo de regresión lineal actual no es adecuado para los datos. Por lo tanto es importante reconsiderar la especificación del modelo, adoptando métodos de modelado alternativos para capturar mejor la relación entre los datos.
+
+La última gráfica nos enseña los puntos que tienen más influencia en el modelo. Como podemos ver, algunos puntos de datos están influyendo desproporcionadamente en el modelo de regresión. Una buena solución es eliminar esos datos de nuestro dataset , volver a realizar el modelo y repetir este proceso. Además, se puede observar que los residuos están agrupados formando un patrón, posiblemente causado por la violación de supuestos del modelo.
+
+#### Evaluación en el conjunto de prueba
+
+Ahora, usando el modelo entrenado, vamos a predecir los valores en el conjunto de prueba, a ver que estadísticos obtenemos y así podemos comprobar si nuestro modelo tiene un buen rendimiento con respecto al conjunto de prueba.
+
+```{r}
+predictions <- predict(modelo2, newdata = test)
+predictions <- ifelse(predictions < 0.5, 0, 1)
+
+mse <- mean((test$fake - predictions)^2)
+mse 
+
+mae <- mean(abs(test$fake - predictions))
+mae
+
+r_squared <- 1 - sum((test$fake - predictions)^2) / sum((test$fake - mean(test$fake))^2)
+r_squared
+```
+
+**MSE (Error cuadrático medio)**
+
+-   El mse mide el promedio de los cuadrados de los errores o desviaciones, es decir, la diferencia entre los valores observados y los predichos.
+
+-   En este caso hemos obtenido un mse de 0.10. Sin embargo, este valor es demasiado alto, ya que el atributo fake toma valores entre 0 y 1, por lo que nos está indicando que no se ajusta relativamente bien al modelo
+
+**MAE (Error absoluto medio)**
+
+-   EL mae mide el promedio de los errores absolutos entre los valores observados y los predichos. Es más robusto a outliers en comparación con el mse.
+
+-   En nuestro caso hemos obtenido un mae de 0.10, el cuál es el mismo que el mse, por lo que ocurre lo mismo
+
+**R2**
+
+-   Indica la proporción de la varianza en la variable dependiente que es predecible a partir de las variables independientes. Un R2 cercano a 1 indica un buen ajuste del modelo.
+
+-   En este caso el R2 es bastante escaso, un 0.56. Lo que nos vuelve a indicar un mal ajuste a los datos del modelo.
+
+### Mejora del modelo
+
+Al obtener unos resultados bastantes mediocres en la validación del modelo, vamos a mejorarlo añadiendo variables polinómicas. Iremos probando algunas hasta encontrar la combinación óptima que mejore nuestro modelo al completo.
+
+#### Ingeniería de Características
+
+Para intentar mejorar aun más el modelo, con los datos y variables que disponemos, vamos a intentar sacar nuevas variables operando con las existentes. Por ejemplo, vamos a ver si añadiendo una característica que sea followers/follows podemos mejorar el modelo.
+
+```{r}
+train$new_feature <- train$`#follows`/ train$`#followers`
+train$new_feature2 <- train$`description length`/ train$`#followers`
+
+
+#Eliminamos los infinitos
+train <- train %>% filter(new_feature != Inf) %>% filter(new_feature2 != Inf)
+
+attach(train)
+modelo2.update <- update(modelo2, . ~ . + new_feature + new_feature2)
+summary(modelo2.update)
+```
+
+#### Selección de variables
+
+Tal y como hemos estudiando anteriormente, una variable clave para detectar si una cuenta es falsa o no es el numero de palabras que tiene el nombre, así que vamos a añadirle a nuestro modelo esa variable polinómica a ver que ocurre.
+
+```{r}
+modelo2.update <- update(modelo2.update, . ~ . + I(`fullname words`^2))
+summary(modelo2.update)
+```
+
+Como vemos no cambia en nada, por lo que hay que seguir probando hasta dar con una mejora correcta.
+
+```{r}
+modelo2.update <- update(modelo2.update, . ~ . - I(`fullname words`^2) + I(`description length`^2) + I(`nums/length username`^2) + `nums/length username` * `#posts` + I(`nums/length username`^2) * `#posts` - `#posts` + I(new_feature^2))
+summary(modelo2.update)
+```
+
+Tras unos intentos, he llegado a la conclusión que este modelo no se puede mejorar más. Una de las causas es porque, de las variables significativas, si su valor es o 0 o 1, no tiene sentido elevarlo a algún numero, ya que se va a mantener igual. Otra de las causas es que del resto de variables numericas con mayor rango de números, si esas variables no son significativas en nuestro modelo, difícilmente lo serán en nuestro modelo polinómico.
+
+Por tanto, hemos conseguido mejorar nuestro modelo a un error estándar de residuos de 0.29 y a un R2 de 0.6715, 0.08 más que el anterior.
+
+#### Interpretación y Visualización
+
+```{r}
+coef(summary(modelo2.update))
+plot(modelo2.update)
+```
+
+Como podemos observar, al final nos hemos quedado con 10 variables, de las cuales dos de ellas son polinómicas.
+
+Dicho anteriormente, aunque hemos ligeramente mejorado nuestro modelo, no podemos considerarlo como un buen modelo debido a que su R2 sigue siendo aún muy bajo. Además los residuos siguen siguiendo un patrón, no son aleatorios, por lo que en esa parte tampoco hemos mejorado.
+
+### 
